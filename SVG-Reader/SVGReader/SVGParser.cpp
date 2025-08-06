@@ -1,3 +1,4 @@
+// SVGParser.cpp
 #include "stdafx.h"
 #include "rapidxml.hpp"
 #include "SVGParser.h"
@@ -8,12 +9,16 @@
 #include "SVGEllipse.h"
 #include "SVGPolyline.h"
 #include "SVGPolygon.h"
+#include "SVGPath.h"
+#include "SVGGroup.h"
+#include "helper.h"
 
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <regex>
 #include <memory>
+#include <functional>
 
 #include <windows.h>
 #include <objidl.h>
@@ -22,34 +27,6 @@
 
 using namespace Gdiplus;
 using namespace rapidxml;
-
-static Gdiplus::Color parseColor(xml_attribute<>* attr) {
-    if (!attr) return Gdiplus::Color(0, 0, 0);
-    std::string value = attr->value();
-    int r = 0, g = 0, b = 0;
-    if (sscanf_s(value.c_str(), "rgb(%d,%d,%d)", &r, &g, &b) == 3) {
-        return Gdiplus::Color(r, g, b);
-    }
-    return Gdiplus::Color(0, 0, 0);
-}
-
-static float parseOpacity(xml_attribute<>* attr) {
-    if (!attr) return 1.0f;
-    return std::stof(attr->value());
-}
-
-static std::vector<Gdiplus::Point> parsePoints(const std::string& pointStr) {
-    std::vector<Gdiplus::Point> points;
-    std::regex rgx(R"((\d+),(\d+))");
-    auto begin = std::sregex_iterator(pointStr.begin(), pointStr.end(), rgx);
-    auto end = std::sregex_iterator();
-    for (auto i = begin; i != end; ++i) {
-        int x = std::stoi((*i)[1]);
-        int y = std::stoi((*i)[2]);
-        points.emplace_back(x, y);
-    }
-    return points;
-}
 
 SVGParseResult SVGParser::parse(const std::string& filename) {
     SVGParseResult result;
@@ -86,8 +63,31 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
         return result.colorPool.back().get();
         };
 
-    for (xml_node<>* node = svg->first_node(); node; node = node->next_sibling()) {
+    std::function<void(xml_node<>*, SVGGroup*)> parseNode;
+    parseNode = [&](xml_node<>* node, SVGGroup* parentGroup) {
         std::string tag = node->name();
+
+        auto addTo = [&](std::unique_ptr<SVGElement> el) {
+            if (parentGroup)
+                parentGroup->addElement(std::move(el));
+            else
+                result.elements.push_back(std::move(el));
+            };
+
+        auto applyAttributes = [](SVGElement* element, xml_node<>* node) {
+            if (auto attr = node->first_attribute("transform"))
+                element->setTransform(std::wstring(attr->value(), attr->value() + strlen(attr->value())));
+            if (auto attr = node->first_attribute("stroke"))
+                element->setStroke(std::wstring(attr->value(), attr->value() + strlen(attr->value())));
+            if (auto attr = node->first_attribute("fill"))
+                element->setFill(std::wstring(attr->value(), attr->value() + strlen(attr->value())));
+            if (auto attr = node->first_attribute("stroke-width"))
+                element->setStrokeWidth(std::wstring(attr->value(), attr->value() + strlen(attr->value())));
+            if (auto attr = node->first_attribute("stroke-opacity"))
+                element->setStrokeOpacity(std::wstring(attr->value(), attr->value() + strlen(attr->value())));
+            if (auto attr = node->first_attribute("fill-opacity"))
+                element->setFillOpacity(std::wstring(attr->value(), attr->value() + strlen(attr->value())));
+            };
 
         if (tag == "line") {
             int x1 = std::stoi(node->first_attribute("x1")->value());
@@ -97,8 +97,7 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             int strokeW = node->first_attribute("stroke-width") ? std::stoi(node->first_attribute("stroke-width")->value()) : 1;
             float strokeOp = parseOpacity(node->first_attribute("stroke-opacity"));
             auto stroke = makeColor(node->first_attribute("stroke"), strokeOp);
-
-            result.elements.push_back(std::make_unique<SVGLine>(x1, y1, x2, y2, stroke, strokeW));
+            addTo(std::make_unique<SVGLine>(x1, y1, x2, y2, stroke, strokeW));
         }
         else if (tag == "rect") {
             int x = std::stoi(node->first_attribute("x")->value());
@@ -113,7 +112,7 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             auto stroke = makeColor(node->first_attribute("stroke"), strokeOp);
             int strokeW = node->first_attribute("stroke-width") ? std::stoi(node->first_attribute("stroke-width")->value()) : 1;
 
-            result.elements.push_back(std::make_unique<SVGRect>(x, y, w, h, fill, stroke, strokeW));
+            addTo(std::make_unique<SVGRect>(x, y, w, h, fill, stroke, strokeW));
         }
         else if (tag == "circle") {
             int cx = std::stoi(node->first_attribute("cx")->value());
@@ -127,7 +126,7 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             auto stroke = makeColor(node->first_attribute("stroke"), strokeOp);
             int strokeW = node->first_attribute("stroke-width") ? std::stoi(node->first_attribute("stroke-width")->value()) : 1;
 
-            result.elements.push_back(std::make_unique<SVGCircle>(cx, cy, r, fill, stroke, strokeW));
+            addTo(std::make_unique<SVGCircle>(cx, cy, r, fill, stroke, strokeW));
         }
         else if (tag == "text") {
             int x = std::stoi(node->first_attribute("x")->value());
@@ -136,7 +135,7 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             auto fill = makeColor(node->first_attribute("fill"));
             std::string content = node->value();
 
-            result.elements.push_back(std::make_unique<SVGText>(x, y, fontSize, fill, content));
+            addTo(std::make_unique<SVGText>(x, y, fontSize, fill, content));
         }
         else if (tag == "ellipse") {
             int cx = std::stoi(node->first_attribute("cx")->value());
@@ -151,7 +150,7 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             auto stroke = makeColor(node->first_attribute("stroke"), strokeOp);
             int strokeW = node->first_attribute("stroke-width") ? std::stoi(node->first_attribute("stroke-width")->value()) : 1;
 
-            result.elements.push_back(std::make_unique<SVGEllipse>(cx, cy, rx, ry, fill, stroke, strokeW));
+            addTo(std::make_unique<SVGEllipse>(cx, cy, rx, ry, fill, stroke, strokeW));
         }
         else if (tag == "polyline") {
             std::vector<Gdiplus::Point> pts = parsePoints(node->first_attribute("points")->value());
@@ -163,7 +162,7 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             auto stroke = makeColor(node->first_attribute("stroke"), strokeOp);
             int strokeW = node->first_attribute("stroke-width") ? std::stoi(node->first_attribute("stroke-width")->value()) : 1;
 
-            result.elements.push_back(std::make_unique<SVGPolyline>(pts, fill, stroke, strokeW));
+            addTo(std::make_unique<SVGPolyline>(pts, fill, stroke, strokeW));
         }
         else if (tag == "polygon") {
             std::vector<Gdiplus::Point> pts = parsePoints(node->first_attribute("points")->value());
@@ -175,10 +174,38 @@ SVGParseResult SVGParser::parse(const std::string& filename) {
             auto stroke = makeColor(node->first_attribute("stroke"), strokeOp);
             int strokeW = node->first_attribute("stroke-width") ? std::stoi(node->first_attribute("stroke-width")->value()) : 1;
 
-            result.elements.push_back(std::make_unique<SVGPolygon>(pts, fill, stroke, strokeW));
+            addTo(std::make_unique<SVGPolygon>(pts, fill, stroke, strokeW));
         }
+        else if (tag == "path") {
+            auto path = std::make_unique<SVGPath>();
+            for (xml_attribute<>* attr = node->first_attribute(); attr; attr = attr->next_attribute()) {
+                path->setAttribute(attr);
+            }
+            addTo(std::move(path));
+        }
+        else if (tag == "g") {
+            std::unique_ptr<SVGGroup> group = std::make_unique<SVGGroup>();
+
+            // Apply transform attribute
+            if (auto attr = node->first_attribute("transform")) {
+                std::wstring t(attr->value(), attr->value() + strlen(attr->value()));
+                group->setTransform(parseTransform(t));
+            }
+
+            // Optional: Apply inherited styles to group (pass to children if needed)
+            applyAttributes(group.get(), node);
+
+            for (xml_node<>* child = node->first_node(); child; child = child->next_sibling()) {
+                parseNode(child, group.get());
+            }
+
+            addTo(std::move(group));
+        }
+     };
+
+    for (xml_node<>* node = svg->first_node(); node; node = node->next_sibling()) {
+        parseNode(node, nullptr);
     }
 
     return result;
 }
-
