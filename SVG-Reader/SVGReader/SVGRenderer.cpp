@@ -13,6 +13,6 @@ void SVGRenderer::render(const SVGParseResult& result, Gdiplus::Graphics& graphi
     for (const auto& element : result.elements) {
         // Check that the element is valid before drawing
         if (element)
-            element->draw(graphics);  // Delegate actual rendering to the element's draw() method
+            element->elementRender(graphics);  // Delegate actual rendering to the element's draw() method
     }
 }
