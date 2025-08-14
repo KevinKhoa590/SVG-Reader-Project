@@ -106,7 +106,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>Gdiplus.lib</AdditionalDependencies>
     </Link>
@@ -148,21 +148,28 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="helper.h" />
     <ClInclude Include="rapidxml.hpp" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="SVGCircle.h" />
     <ClInclude Include="SVGElement.h" />
     <ClInclude Include="SVGEllipse.h" />
+    <ClInclude Include="SVGGradient.h" />
     <ClInclude Include="SVGLine.h" />
+    <ClInclude Include="SVGLinearGradient.h" />
     <ClInclude Include="SVGParser.h" />
+    <ClInclude Include="SVGPath.h" />
     <ClInclude Include="SVGPolygon.h" />
     <ClInclude Include="SVGPolyline.h" />
+    <ClInclude Include="SVGRadialGradient.h" />
     <ClInclude Include="SVGRect.h" />
     <ClInclude Include="SVGText.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="transform.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="helper.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -171,15 +178,23 @@
     </ClCompile>
     <ClCompile Include="SVGCircle.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SVGElement.cpp" />
     <ClCompile Include="SVGEllipse.cpp" />
+    <ClCompile Include="SVGGradient.cpp" />
+    <ClCompile Include="SVGGroup.cpp" />
+    <ClInclude Include="SVGGroup.h" />
     <ClCompile Include="SVGLine.cpp" />
+    <ClCompile Include="SVGLinearGradient.cpp" />
     <ClCompile Include="SVGParser.cpp" />
+    <ClCompile Include="SVGPath.cpp" />
     <ClCompile Include="SVGPolygon.cpp" />
     <ClCompile Include="SVGPolyline.cpp" />
+    <ClCompile Include="SVGRadialGradient.cpp" />
     <ClCompile Include="SVGRect.cpp" />
     <ClCompile Include="SVGRenderer.cpp" />
     <ClCompile Include="SVGRenderer.h" />
     <ClCompile Include="SVGText.cpp" />
+    <ClCompile Include="transform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SVGReader.rc" />
