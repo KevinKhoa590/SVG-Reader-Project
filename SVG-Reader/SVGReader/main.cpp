@@ -38,42 +38,43 @@ int main()
     ULONG_PTR gdiplusToken;
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
-    // Ask user for SVG path
+    // Ask user for SVG path until valid
     string svgPath;
     while (true) {
         cout << "Enter path to SVG file: ";
         getline(cin, svgPath);
 
         if (svgPath.empty()) {
-            svgPath = "sample.svg";
-            cout << "No input provided. Using default: sample.svg\n";
+            cerr << "Path cannot be empty. Try again.\n";
+            continue;
         }
 
         ifstream test(svgPath);
-        if (test.good()) break;
-        else cerr << "File not found: " << svgPath << "\nTry again.\n";
+        if (test.good()) {
+            break;
+        }
+        else {
+            cerr << "File not found: " << svgPath << "\nTry again.\n";
+        }
     }
 
     // Parse SVG file
     svgResult = SVGParser::parse(svgPath);
 
     // Register window class
-    WNDCLASS wndClass;
+    WNDCLASS wndClass = {};
     wndClass.style = CS_HREDRAW | CS_VREDRAW;
     wndClass.lpfnWndProc = WndProc;
-    wndClass.cbClsExtra = 0;
-    wndClass.cbWndExtra = 0;
     wndClass.hInstance = GetModuleHandle(NULL);
     wndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
     wndClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-    wndClass.lpszMenuName = NULL;
     wndClass.lpszClassName = TEXT("SVGWindow");
 
     RegisterClass(&wndClass);
 
     HWND hWnd = CreateWindow(
-        TEXT("SVGWindow"), TEXT(""),
+        TEXT("SVGWindow"), TEXT("SVG Viewer"),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
         800, 600,
