@@ -11,7 +11,7 @@ class SVGText : public SVGElement {
 private:
     int x, y;
     int fontSize;
-    const Gdiplus::Color* fill;
+    const Gdiplus::Color* fillColor;
     std::string text;
 
 public:
