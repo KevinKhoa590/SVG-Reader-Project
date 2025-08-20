@@ -7,20 +7,38 @@
 
 using namespace Gdiplus;
 
-// Constructor to initialize the ellipse properties
 SVGEllipse::SVGEllipse(int cx_, int cy_, int rx_, int ry_,
     const Color* fill, const Color* stroke, int strokeW)
     : cx(cx_), cy(cy_), rx(rx_), ry(ry_),
     fillColor(fill), strokeColor(stroke), strokeWidth(strokeW) {}
 
-// Draws the ellipse using GDI+
-// The ellipse is drawn by converting center/radius to bounding box
-void SVGEllipse::draw(Graphics& g) {
-    // Create brush with fill color and draw the filled ellipse
-    SolidBrush brush(*fillColor);
-    g.FillEllipse(&brush, cx - rx, cy - ry, 2 * rx, 2 * ry);
+void SVGEllipse::draw(Gdiplus::Graphics& g) {
+    REAL left = static_cast<REAL>(cx - rx);
+    REAL top = static_cast<REAL>(cy - ry);
+    REAL w = static_cast<REAL>(2 * rx);
+    REAL h = static_cast<REAL>(2 * ry);
+    RectF boundsF(left, top, w, h);
 
-    // Create pen with stroke color and draw the ellipse border
-    Pen pen(*strokeColor, strokeWidth);
-    g.DrawEllipse(&pen, cx - rx, cy - ry, 2 * rx, 2 * ry);
+    auto brushPtr = createFillBrush(g, boundsF);
+    if (brushPtr) {
+        g.FillEllipse(brushPtr.get(), left, top, w, h);
+    }
+    else if (fillColor) {
+        SolidBrush brush(*fillColor);
+        g.FillEllipse(&brush, left, top, w, h);
+    }
+
+    if ((strokeColor != nullptr || getStrokeGradient() != nullptr) && strokeWidth > 0) {
+        auto strokeBrush = createStrokeBrush(g, boundsF);
+        if (strokeBrush) {
+            Pen pen(strokeBrush.get(), static_cast<REAL>(strokeWidth));
+            g.DrawEllipse(&pen, left, top, w, h);
+        }
+        else if (strokeColor) {
+            Pen pen(*strokeColor, static_cast<REAL>(strokeWidth));
+            g.DrawEllipse(&pen, left, top, w, h);
+        }
+    }
 }
+
+
