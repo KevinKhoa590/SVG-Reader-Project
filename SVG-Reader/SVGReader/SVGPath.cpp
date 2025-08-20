@@ -125,9 +125,17 @@ void SVGPath::draw(Graphics& g) {
         }
     }
 
-    if (hasFill && fillOpacity > 0 && fillColor) {
+    // Fill
+    RectF bounds;
+    path.GetBounds(&bounds);
+
+    if (getFillGradient()) {
+        auto brush = createFillBrush(g, bounds);
+        if (brush) g.FillPath(brush.get(), &path);
+    }
+    else if (fillColor && fillOpacity > 0.0f) {
         SolidBrush brush(Color(
-            static_cast<BYTE>(fillOpacity * 255),
+            static_cast<BYTE>(clamp01(fillOpacity) * 255.0f),
             fillColor->GetR(),
             fillColor->GetG(),
             fillColor->GetB()
@@ -135,13 +143,14 @@ void SVGPath::draw(Graphics& g) {
         g.FillPath(&brush, &path);
     }
 
-    if (hasStroke && strokeOpacity > 0 && strokeWidth > 0 && strokeColor) {
+    // Stroke
+    if (strokeColor && strokeWidth > 0 && strokeOpacity > 0.0f) {
         Pen pen(Color(
-            static_cast<BYTE>(strokeOpacity * 255),
+            static_cast<BYTE>(clamp01(strokeOpacity) * 255.0f),
             strokeColor->GetR(),
             strokeColor->GetG(),
             strokeColor->GetB()
-        ), strokeWidth);
+        ), static_cast<REAL>(strokeWidth));
         g.DrawPath(&pen, &path);
     }
 }
